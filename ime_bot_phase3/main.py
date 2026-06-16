@@ -1,4 +1,4 @@
-from threading import Thread
+
 from threading import Thread
 
 from scheduler.live_engine import start_engine
