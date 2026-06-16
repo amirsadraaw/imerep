@@ -44,34 +44,21 @@ def run():
                 f"{today}T{trade_time}"
             )
 
-
         SnapshotService.save_if_changed(
 
             call_id,
 
-            row.get(
-                "CallContractCode"
-            ),
+            row.get("CallContractCode"),
 
-            row.get(
-                "CallContractDescription"
-            ),
+            row.get("CallContractDescription"),
 
             "OPTION",
 
-            row.get(
-                "CallLastTradedPrice"
-            ),
+            row.get("CallLastTradedPrice"),
 
-            row.get(
-                "CallTradesVolume"
-            ),
+            row.get("CallTradesVolume"),
 
-            None,
-
-            row.get(
-                "CallOpenInterests"
-            ),
+            row.get("CallOpenInterests"),
 
             snapshot_time
         )
