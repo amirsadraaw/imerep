@@ -9,12 +9,12 @@ class ContractService:
     """سرویس مدیریت قراردادها و نمادها"""
 
     @staticmethod
-    def get_contracts_by_market_type(market_type):
+    def get_contracts_by_market_type(market_type_code):
         """
         دریافت تمام نمادهای یک نوع بازار از دیتابیس
         
         Args:
-            market_type: نوع بازار (گواهی سپرده، اختیار معامله، آتی)
+            market_type_code: کد نوع بازار (cdc، option، future)
             
         Returns:
             لیستی از نمادها به فرمت: [{'code': 'نماد', 'description': 'توضیحات'}, ...]
@@ -29,7 +29,7 @@ class ContractService:
                 FROM snapshots
                 WHERE market_type = ?
                 ORDER BY contract_code
-            """, (market_type,))
+            """, (market_type_code,))
             
             contracts = []
             for row in cursor.fetchall():
@@ -40,6 +40,9 @@ class ContractService:
             
             return contracts
         
+        except Exception as e:
+            print(f"خطا در دریافت نمادها: {e}")
+            return []
         finally:
             conn.close()
 
@@ -93,6 +96,9 @@ class ContractService:
                 'trade_date': row[8]
             }
         
+        except Exception as e:
+            print(f"خطا در دریافت داده نماد: {e}")
+            return None
         finally:
             conn.close()
 
@@ -142,6 +148,9 @@ class ContractService:
             
             return data
         
+        except Exception as e:
+            print(f"خطا در دریافت داده‌های امروز: {e}")
+            return []
         finally:
             conn.close()
 
