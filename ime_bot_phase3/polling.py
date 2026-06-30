@@ -41,6 +41,13 @@ from handlers.start_handler import (
     handle_start
 )
 
+# نقشه تبدیل از فارسی به کد دیتابیس
+MARKET_TYPE_MAP = {
+    "گواهی سپرده": "cdc",
+    "اختیار معامله": "option",
+    "آتی": "future"
+}
+
 offset = 0
 def get_updates():
 
@@ -97,9 +104,9 @@ def process_update(update):
 
         current_state = user_states.get(chat_id)
 
-        if current_state == "commodity":
+        if current_state == "awaiting_commodity":
 
-            user_states[chat_id] = "timeframe"
+            user_states[chat_id] = "awaiting_timeframe"
 
             send_message(
                 chat_id,
@@ -107,7 +114,7 @@ def process_update(update):
                 TIMEFRAME_KEYBOARD
             )
 
-        elif current_state == "timeframe":
+        elif current_state == "awaiting_timeframe":
 
             user_states[chat_id] = "market"
 
@@ -146,8 +153,9 @@ def process_update(update):
     elif text == "گواهی سپرده":
 
         user_states[chat_id] = "awaiting_timeframe"
-        # ذخیره نوع بازار برای استفاده بعدی
-        user_states[f"{chat_id}_market_type"] = "گواهی سپرده"
+        # ذخیره نوع بازار براساس کد دیتابیس
+        user_states[f"{chat_id}_market_type"] = MARKET_TYPE_MAP["گواهی سپرده"]
+        user_states[f"{chat_id}_market_type_fa"] = "گواهی سپرده"
 
         send_message(
             chat_id,
@@ -158,7 +166,8 @@ def process_update(update):
     elif text == "اختیار معامله":
 
         user_states[chat_id] = "awaiting_timeframe"
-        user_states[f"{chat_id}_market_type"] = "اختیار معامله"
+        user_states[f"{chat_id}_market_type"] = MARKET_TYPE_MAP["اختیار معامله"]
+        user_states[f"{chat_id}_market_type_fa"] = "اختیار معامله"
 
         send_message(
             chat_id,
@@ -169,7 +178,8 @@ def process_update(update):
     elif text == "آتی":
 
         user_states[chat_id] = "awaiting_timeframe"
-        user_states[f"{chat_id}_market_type"] = "آتی"
+        user_states[f"{chat_id}_market_type"] = MARKET_TYPE_MAP["آتی"]
+        user_states[f"{chat_id}_market_type_fa"] = "آتی"
 
         send_message(
             chat_id,
@@ -188,7 +198,8 @@ def process_update(update):
         # اگر از بخش بازار آمده‌ایم
         if current_state == "awaiting_timeframe":
             market_type = user_states.get(f"{chat_id}_market_type")
-            handle_market_timeframe(chat_id, text, market_type)
+            market_type_fa = user_states.get(f"{chat_id}_market_type_fa")
+            handle_market_timeframe(chat_id, text, market_type, market_type_fa)
         else:
             user_states[chat_id] = "commodity"
             send_message(
@@ -203,8 +214,9 @@ def process_update(update):
         # اگر از تایم فریم آمده‌ایم (بخش بازار)
         if current_state == "awaiting_commodity":
             market_type = user_states.get(f"{chat_id}_market_type")
+            market_type_fa = user_states.get(f"{chat_id}_market_type_fa")
             timeframe = user_states.get(f"{chat_id}_timeframe")
-            handle_commodity_selection(chat_id, text, market_type, timeframe)
+            handle_commodity_selection(chat_id, text, market_type, timeframe, market_type_fa)
         else:
             # رفتار قدیمی برای سازگاری
             filter_id = FILTER_MAP[text]
