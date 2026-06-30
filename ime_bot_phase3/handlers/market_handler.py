@@ -7,19 +7,22 @@ from keyboard import TIMEFRAME_KEYBOARD
 from utils.keyboard_builder import build_dynamic_keyboard
 
 
-def handle_market_timeframe(chat_id, timeframe, market_type):
+def handle_market_timeframe(chat_id, timeframe, market_type, market_type_fa):
     """
     هندلر انتخاب بازه زمانی و نمایش نمادهای دیتابیسی
     
     Args:
         chat_id: شناسه چت
         timeframe: بازه زمانی انتخاب شده (تایم بازار، روزانه، هفتگی، ماهانه)
-        market_type: نوع بازار (گواهی سپرده، اختیار معامله، آتی)
+        market_type: کد نوع بازار (cdc, option, future)
+        market_type_fa: نام فارسی بازار
     """
-    # ذخیره timeframe برای استفاده بعدی
+    # ذخیره timeframe و market_type برای استفاده بعدی
     from polling import user_states
     user_states[chat_id] = "awaiting_commodity"
     user_states[f"{chat_id}_timeframe"] = timeframe
+    user_states[f"{chat_id}_market_type"] = market_type
+    user_states[f"{chat_id}_market_type_fa"] = market_type_fa
     
     # دریافت نمادهای بازار از دیتابیس
     try:
@@ -28,7 +31,7 @@ def handle_market_timeframe(chat_id, timeframe, market_type):
         if not contracts:
             send_message(
                 chat_id,
-                f"❌ نمادی برای {market_type} {timeframe} یافت نشد"
+                f"❌ نمادی برای {market_type_fa} {timeframe} یافت نشد"
             )
             return
         
@@ -37,7 +40,7 @@ def handle_market_timeframe(chat_id, timeframe, market_type):
         
         send_message(
             chat_id,
-            f"📊 نمادهای {market_type} ({timeframe})\n\nنماد مورد نظر را انتخاب کنید:",
+            f"📊 نمادهای {market_type_fa} ({timeframe})\n\nنماد مورد نظر را انتخاب کنید:",
             keyboard
         )
     
@@ -48,15 +51,16 @@ def handle_market_timeframe(chat_id, timeframe, market_type):
         )
 
 
-def handle_commodity_selection(chat_id, contract_code, market_type, timeframe):
+def handle_commodity_selection(chat_id, contract_code, market_type, timeframe, market_type_fa):
     """
     هندلر انتخاب نماد و نمایش داده‌های آن + چارت شمعی
     
     Args:
         chat_id: شناسه چت
         contract_code: کد نماد انتخاب شده
-        market_type: نوع بازار
+        market_type: کد نوع بازار (cdc, option, future)
         timeframe: بازه زمانی
+        market_type_fa: نام فارسی بازار
     """
     try:
         # دریافت داده‌های نماد
@@ -73,7 +77,7 @@ def handle_commodity_selection(chat_id, contract_code, market_type, timeframe):
         message = f"""
 📊 **{data['description']} ({data['code']})**
 
-🏷️ **بازار:** {data['market_type']}
+🏷️ **بازار:** {market_type_fa}
 ⏱️ **بازه زمانی:** {timeframe}
 
 💰 **آخرین قیمت:** {data['last_price']:,} تومان
