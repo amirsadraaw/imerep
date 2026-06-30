@@ -1,7 +1,7 @@
 """
 هندلرهای مربوط به بخش رصد بازار
 """
-from sender import send_message
+from sender import send_message, send_chart
 from services.contract_service import ContractService
 from keyboard import TIMEFRAME_KEYBOARD
 from utils.keyboard_builder import build_dynamic_keyboard
@@ -50,7 +50,7 @@ def handle_market_timeframe(chat_id, timeframe, market_type):
 
 def handle_commodity_selection(chat_id, contract_code, market_type, timeframe):
     """
-    هندلر انتخاب نماد و نمایش داده‌های آن
+    هندلر انتخاب نماد و نمایش داده‌های آن + چارت شمعی
     
     Args:
         chat_id: شناسه چت
@@ -83,13 +83,19 @@ def handle_commodity_selection(chat_id, contract_code, market_type, timeframe):
 
 ⏰ **زمان:** {data['snapshot_time']}
 📅 **تاریخ معاملات:** {data['trade_date']}
-
-⏳ درحال پردازش داده‌های شمعی...
 """
         send_message(chat_id, message)
         
-        # نمایش چارت (بعدی در مرحله بعد)
-        # send_chart(chat_id, contract_code, timeframe)
+        # تعیین تعداد دقیقه‌های شمع براساس timeframe
+        timeframe_minutes = {
+            'تایم بازار': 5,
+            'روزانه': 1440,
+            'هفتگی': 10080,
+            'ماهانه': 43200
+        }.get(timeframe, 5)
+        
+        # ارسال چارت شمعی
+        send_chart(chat_id, contract_code, timeframe_minutes)
     
     except Exception as e:
         send_message(
