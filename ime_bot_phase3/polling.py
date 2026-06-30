@@ -3,6 +3,10 @@ import time
 from handlers.cover_call_handler import (
     handle_cover_call
 )
+from handlers.market_handler import (
+    handle_market_timeframe,
+    handle_commodity_selection
+)
 
 user_states = {}
 FILTER_MAP = {
@@ -64,6 +68,8 @@ def get_updates():
         )
 
     return updates
+
+
 def process_update(update):
 
     message = update.get("message")
@@ -139,7 +145,31 @@ def process_update(update):
 
     elif text == "گواهی سپرده":
 
-        user_states[chat_id] = "timeframe"
+        user_states[chat_id] = "awaiting_timeframe"
+        # ذخیره نوع بازار برای استفاده بعدی
+        user_states[f"{chat_id}_market_type"] = "گواهی سپرده"
+
+        send_message(
+            chat_id,
+            "بازه زمانی را انتخاب کنید",
+            TIMEFRAME_KEYBOARD
+        )
+
+    elif text == "اختیار معامله":
+
+        user_states[chat_id] = "awaiting_timeframe"
+        user_states[f"{chat_id}_market_type"] = "اختیار معامله"
+
+        send_message(
+            chat_id,
+            "بازه زمانی را انتخاب کنید",
+            TIMEFRAME_KEYBOARD
+        )
+
+    elif text == "آتی":
+
+        user_states[chat_id] = "awaiting_timeframe"
+        user_states[f"{chat_id}_market_type"] = "آتی"
 
         send_message(
             chat_id,
@@ -153,23 +183,37 @@ def process_update(update):
         "هفتگی",
         "ماهانه"
     ]:
-
-        user_states[chat_id] = "commodity"
-
-        send_message(
-            chat_id,
-            "کالای مورد نظر را انتخاب کنید",
-            COMMODITY_KEYBOARD
-        )
+        current_state = user_states.get(chat_id)
+        
+        # اگر از بخش بازار آمده‌ایم
+        if current_state == "awaiting_timeframe":
+            market_type = user_states.get(f"{chat_id}_market_type")
+            handle_market_timeframe(chat_id, text, market_type)
+        else:
+            user_states[chat_id] = "commodity"
+            send_message(
+                chat_id,
+                "کالای مورد نظر را انتخاب کنید",
+                COMMODITY_KEYBOARD
+            )
 
     elif text in FILTER_MAP:
+        current_state = user_states.get(chat_id)
+        
+        # اگر از تایم فریم آمده‌ایم (بخش بازار)
+        if current_state == "awaiting_commodity":
+            market_type = user_states.get(f"{chat_id}_market_type")
+            timeframe = user_states.get(f"{chat_id}_timeframe")
+            handle_commodity_selection(chat_id, text, market_type, timeframe)
+        else:
+            # رفتار قدیمی برای سازگاری
+            filter_id = FILTER_MAP[text]
+            send_message(
+                chat_id,
+                f"فیلتر انتخاب شده: {filter_id}"
+            )
 
-        filter_id = FILTER_MAP[text]
 
-        send_message(
-            chat_id,
-            f"فیلتر انتخاب شده: {filter_id}"
-        )
 def start_polling():
 
     while True:
