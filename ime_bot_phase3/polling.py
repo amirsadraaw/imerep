@@ -41,11 +41,12 @@ from handlers.start_handler import (
     handle_start
 )
 
-# نقشه تبدیل از فارسی به کد دیتابیس
+# نقشه تبدیل از فارسی به کد دیتابیس (براساس مقادیر واقعی market_type)
 MARKET_TYPE_MAP = {
-    "گواهی سپرده": "cdc",
-    "اختیار معامله": "option",
-    "آتی": "future"
+    "گواهی سپرده": "CDC",
+    "اختیار معامله": "OPTION",
+    "آتی": "FUTURE",
+    "صندوق": "ETF"
 }
 
 offset = 0
@@ -153,7 +154,7 @@ def process_update(update):
     elif text == "گواهی سپرده":
 
         user_states[chat_id] = "awaiting_timeframe"
-        # ذخیره نوع بازار براساس کد دیتابیس
+        # ذخیره نوع بازار براساس کد دیتابیس (CDC)
         user_states[f"{chat_id}_market_type"] = MARKET_TYPE_MAP["گواهی سپرده"]
         user_states[f"{chat_id}_market_type_fa"] = "گواهی سپرده"
 
