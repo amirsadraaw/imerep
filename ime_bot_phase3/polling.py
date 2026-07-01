@@ -199,6 +199,8 @@ def process_update(update):
         if current_state == "awaiting_timeframe":
             market_type = user_states.get(f"{chat_id}_market_type")
             market_type_fa = user_states.get(f"{chat_id}_market_type_fa")
+            # ذخیره timeframe قبل از فراخوانی handler
+            user_states[f"{chat_id}_timeframe"] = text
             handle_market_timeframe(chat_id, text, market_type, market_type_fa)
         else:
             user_states[chat_id] = "commodity"
