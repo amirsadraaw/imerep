@@ -230,6 +230,9 @@ class CandleService:
             
             return snapshots
         
+        except Exception as e:
+            print(f"خطا در دریافت snapshots: {e}")
+            return []
         finally:
             conn.close()
 
@@ -261,9 +264,9 @@ class CandleService:
         if not image:
             return None, f"❌ خطا در ساخت چارت برای {contract_code}"
         
-        # متن توضیح
-        first_snap = snapshots[0]
+        # متن توضیح - استفاده از آخرین snapshot
         last_snap = snapshots[-1]
+        first_snap = snapshots[0]
         
         caption = f"""
 📊 **{contract_code}**
@@ -274,9 +277,12 @@ class CandleService:
 🔝 **بالاترین:** {max(s['price'] for s in snapshots):,}
 🔻 **پایین‌ترین:** {min(s['price'] for s in snapshots):,}
 
+📈 **حجم:** {int(last_snap['volume']) if last_snap['volume'] else 0:,}
+📍 **تغییر حجم:** {int(last_snap['volume_delta']) if last_snap['volume_delta'] else 0:,}
+🔓 **پوزیشن باز:** {int(last_snap['oi']) if last_snap['oi'] else 0:,}
+
 📅 **تاریخ:** {last_snap['date']}
-⏰ **زمان:** {last_snap['time']}
-📊 **تعداد شمع‌ها:** {len(snapshots)}
+⏰ **آخرین بروزرسانی:** {last_snap['time']}
 """
         
         return image, caption
