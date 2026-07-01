@@ -211,16 +211,20 @@ def process_update(update):
                 COMMODITY_KEYBOARD
             )
 
-    elif text in FILTER_MAP:
+    else:
+        # بررسی اینکه آیا متن یک نماد است
         current_state = user_states.get(chat_id)
         
-        # اگر از تایم فریم آمده‌ایم (بخش بازار)
+        # اگر کاربر در حالت انتخاب نماد است
         if current_state == "awaiting_commodity":
             market_type = user_states.get(f"{chat_id}_market_type")
             market_type_fa = user_states.get(f"{chat_id}_market_type_fa")
             timeframe = user_states.get(f"{chat_id}_timeframe")
+            
+            print(f"DEBUG: نماد انتخاب شده: {text}, market_type: {market_type}, timeframe: {timeframe}")
+            
             handle_commodity_selection(chat_id, text, market_type, timeframe, market_type_fa)
-        else:
+        elif text in FILTER_MAP:
             # رفتار قدیمی برای سازگاری
             filter_id = FILTER_MAP[text]
             send_message(
