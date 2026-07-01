@@ -115,10 +115,15 @@ class CandleService:
             candles = CandleService.group_by_timeframe(snapshots, timeframe_minutes)
             
             print(f"DEBUG: تعداد شمع‌های ایجاد شده: {len(candles)}")
+            print(f"DEBUG: snapshot نمونه: {snapshots[0] if snapshots else 'خالی'}")
             
             if not candles or len(candles) < 2:
                 print(f"خطا: داده‌های ناکافی برای ساخت چارت (تعداد شمع‌ها: {len(candles)})")
-                return None
+                # اگر داده کافی نیست، حداقل یک شمع واحد رسم کن
+                if len(candles) == 1:
+                    print("DEBUG: فقط یک شمع وجود دارد، می‌توانیم رسم کنیم")
+                else:
+                    return None
             
             # استخراج داده‌ها
             times = [c['time'] for c in candles]
@@ -129,7 +134,7 @@ class CandleService:
             volumes = [c['volume'] for c in candles]
             
             print(f"DEBUG: قیمت‌ها - min: {min(lows)}, max: {max(highs)}")
-            print(f"DEBUG: حجم‌ها - min: {min(volumes)}, max: {max(volumes)}")
+            print(f"DEBUG: حجم‌ها - min: {min(volumes) if volumes else 0}, max: {max(volumes) if volumes else 0}")
             
             # ساخت شکل
             fig, (ax1, ax2) = plt.subplots(
@@ -153,8 +158,8 @@ class CandleService:
                 ax1.plot([i, i], [l, h], color=color, linewidth=1)
                 
                 # بدنه شمع
-                body_height = abs(c - o) if abs(c - o) > 0 else 0.01  # اگر 0 باشد، یک خط ریز بکش
-                body_bottom = min(o, c)
+                body_height = abs(c - o) if abs(c - o) > 0 else h - l
+                body_bottom = min(o, c) if abs(c - o) > 0 else l
                 
                 rect = Rectangle(
                     (i - width/2, body_bottom),
@@ -175,10 +180,14 @@ class CandleService:
             ax1.set_xlim(-1, len(candles))
             
             # تعیین نقاط X axis
-            step = max(1, len(candles) // 10)
-            ax1.set_xticks(range(0, len(candles), step))
+            step = max(1, len(candles) // 10) if len(candles) > 10 else 1
+            tick_positions = list(range(0, len(candles), step))
+            if len(candles) - 1 not in tick_positions:
+                tick_positions.append(len(candles) - 1)
+            
+            ax1.set_xticks(tick_positions)
             ax1.set_xticklabels(
-                [t.strftime('%H:%M') for t in times[::step]],
+                [times[i].strftime('%H:%M') if i < len(times) else '' for i in tick_positions],
                 rotation=45
             )
             
@@ -189,9 +198,9 @@ class CandleService:
             ax2.set_ylabel('Volume', fontsize=10)
             ax2.grid(True, alpha=0.3)
             ax2.set_xlim(-1, len(candles))
-            ax2.set_xticks(range(0, len(candles), step))
+            ax2.set_xticks(tick_positions)
             ax2.set_xticklabels(
-                [t.strftime('%H:%M') for t in times[::step]],
+                [times[i].strftime('%H:%M') if i < len(times) else '' for i in tick_positions],
                 rotation=45
             )
             
@@ -227,20 +236,33 @@ class CandleService:
         cursor = conn.cursor()
         
         try:
-            # ابتدا آخرین تاریخ موجود برای این نماد را بگیر
+            # ابتدا بررسی کنیم چه تاریخ‌هایی برای این نماد موجود است
             cursor.execute("""
-                SELECT MAX(trade_date)
+                SELECT DISTINCT trade_date
                 FROM snapshots
                 WHERE contract_code = ?
+                ORDER BY trade_date DESC
+                LIMIT 10
             """, (contract_code,))
             
-            result = cursor.fetchone()
-            latest_date = result[0] if result and result[0] else None
+            dates = [row[0] for row in cursor.fetchall()]
+            print(f"DEBUG: تاریخ‌های موجود برای {contract_code}: {dates}")
             
-            print(f"DEBUG: آخرین تاریخ برای {contract_code}: {latest_date}")
-            
-            if not latest_date:
+            if not dates:
+                print(f"DEBUG: هیچ تاریخی برای {contract_code} موجود نیست")
                 return []
+            
+            latest_date = dates[0]
+            
+            # تعداد snapshots برای آن تاریخ
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM snapshots
+                WHERE contract_code = ? AND trade_date = ?
+            """, (contract_code, latest_date))
+            
+            count = cursor.fetchone()[0]
+            print(f"DEBUG: تعداد snapshots برای {contract_code} در {latest_date}: {count}")
             
             # اکنون تمام snapshots آن روز را بگیر
             cursor.execute("""
@@ -269,7 +291,7 @@ class CandleService:
                     'date': row[6]
                 })
             
-            print(f"DEBUG: تعداد snapshots برای {contract_code}: {len(snapshots)}")
+            print(f"DEBUG: دریافت شد {len(snapshots)} snapshot برای {contract_code}")
             
             return snapshots
         
