@@ -96,98 +96,103 @@ class CandleService:
         if not snapshots:
             return None
         
-        # گروپ‌بندی داده‌ها
-        candles = CandleService.group_by_timeframe(snapshots, timeframe_minutes)
-        
-        if not candles:
-            return None
-        
-        # استخراج داده‌ها
-        times = [c['time'] for c in candles]
-        opens = [c['open'] for c in candles]
-        highs = [c['high'] for c in candles]
-        lows = [c['low'] for c in candles]
-        closes = [c['close'] for c in candles]
-        volumes = [c['volume'] for c in candles]
-        
-        # ساخت شکل
-        fig, (ax1, ax2) = plt.subplots(
-            2, 1,
-            figsize=(14, 8),
-            gridspec_kw={'height_ratios': [3, 1]}
-        )
-        
-        # تنظیمات فارسی
-        plt.rcParams['font.family'] = 'DejaVu Sans'
-        
-        # رسم شمع‌ها
-        width = 0.6
-        for i, (t, o, h, l, c, v) in enumerate(zip(
-            times, opens, highs, lows, closes, volumes
-        )):
-            # رنگ: سبز اگر close > open، قرمز اگر close < open
-            color = 'green' if c >= o else 'red'
+        try:
+            # گروپ‌بندی داده‌ها
+            candles = CandleService.group_by_timeframe(snapshots, timeframe_minutes)
             
-            # خط بالا و پایین (Wick)
-            ax1.plot([i, i], [l, h], color=color, linewidth=1)
+            if not candles:
+                return None
             
-            # بدنه شمع
-            body_height = abs(c - o)
-            body_bottom = min(o, c)
+            # استخراج داده‌ها
+            times = [c['time'] for c in candles]
+            opens = [c['open'] for c in candles]
+            highs = [c['high'] for c in candles]
+            lows = [c['low'] for c in candles]
+            closes = [c['close'] for c in candles]
+            volumes = [c['volume'] for c in candles]
             
-            rect = Rectangle(
-                (i - width/2, body_bottom),
-                width,
-                body_height,
-                facecolor=color,
-                edgecolor=color,
-                linewidth=1
+            # ساخت شکل
+            fig, (ax1, ax2) = plt.subplots(
+                2, 1,
+                figsize=(14, 8),
+                gridspec_kw={'height_ratios': [3, 1]}
             )
-            ax1.add_patch(rect)
+            
+            # تنظیمات فارسی
+            plt.rcParams['font.family'] = 'DejaVu Sans'
+            
+            # رسم شمع‌ها
+            width = 0.6
+            for i, (t, o, h, l, c, v) in enumerate(zip(
+                times, opens, highs, lows, closes, volumes
+            )):
+                # رنگ: سبز اگر close > open، قرمز اگر close < open
+                color = 'green' if c >= o else 'red'
+                
+                # خط بالا و پایین (Wick)
+                ax1.plot([i, i], [l, h], color=color, linewidth=1)
+                
+                # بدنه شمع
+                body_height = abs(c - o)
+                body_bottom = min(o, c)
+                
+                rect = Rectangle(
+                    (i - width/2, body_bottom),
+                    width,
+                    body_height,
+                    facecolor=color,
+                    edgecolor=color,
+                    linewidth=1
+                )
+                ax1.add_patch(rect)
+            
+            # تنظیمات چارت قیمت
+            ax1.set_xlabel('Time', fontsize=10)
+            ax1.set_ylabel('Price', fontsize=10)
+            ax1.set_title(f'{contract_code} - {timeframe_minutes}min Candlestick Chart', 
+                          fontsize=14, fontweight='bold')
+            ax1.grid(True, alpha=0.3)
+            ax1.set_xlim(-1, len(candles))
+            
+            # تعیین نقاط X axis
+            step = max(1, len(candles) // 10)
+            ax1.set_xticks(range(0, len(candles), step))
+            ax1.set_xticklabels(
+                [t.strftime('%H:%M') for t in times[::step]],
+                rotation=45
+            )
+            
+            # رسم حجم
+            colors_vol = ['green' if closes[i] >= opens[i] else 'red' 
+                          for i in range(len(candles))]
+            ax2.bar(range(len(volumes)), volumes, color=colors_vol, alpha=0.6)
+            ax2.set_ylabel('Volume', fontsize=10)
+            ax2.grid(True, alpha=0.3)
+            ax2.set_xlim(-1, len(candles))
+            ax2.set_xticks(range(0, len(candles), step))
+            ax2.set_xticklabels(
+                [t.strftime('%H:%M') for t in times[::step]],
+                rotation=45
+            )
+            
+            plt.tight_layout()
+            
+            # تبدیل به bytes
+            img_buffer = io.BytesIO()
+            plt.savefig(img_buffer, format='png', dpi=100, bbox_inches='tight')
+            img_buffer.seek(0)
+            plt.close()
+            
+            return img_buffer
         
-        # تنظیمات چارت قیمت
-        ax1.set_xlabel('Time', fontsize=10)
-        ax1.set_ylabel('Price', fontsize=10)
-        ax1.set_title(f'{contract_code} - {timeframe_minutes}min Candlestick Chart', 
-                      fontsize=14, fontweight='bold')
-        ax1.grid(True, alpha=0.3)
-        ax1.set_xlim(-1, len(candles))
-        
-        # تعیین نقاط X axis
-        step = max(1, len(candles) // 10)
-        ax1.set_xticks(range(0, len(candles), step))
-        ax1.set_xticklabels(
-            [t.strftime('%H:%M') for t in times[::step]],
-            rotation=45
-        )
-        
-        # رسم حجم
-        colors_vol = ['green' if closes[i] >= opens[i] else 'red' 
-                      for i in range(len(candles))]
-        ax2.bar(range(len(volumes)), volumes, color=colors_vol, alpha=0.6)
-        ax2.set_ylabel('Volume', fontsize=10)
-        ax2.grid(True, alpha=0.3)
-        ax2.set_xlim(-1, len(candles))
-        ax2.set_xticks(range(0, len(candles), step))
-        ax2.set_xticklabels(
-            [t.strftime('%H:%M') for t in times[::step]],
-            rotation=45
-        )
-        
-        plt.tight_layout()
-        
-        # تبدیل به bytes
-        img_buffer = io.BytesIO()
-        plt.savefig(img_buffer, format='png', dpi=100, bbox_inches='tight')
-        img_buffer.seek(0)
-        plt.close()
-        
-        return img_buffer
+        except Exception as e:
+            print(f"خطا در ساخت چارت: {e}")
+            return None
 
     @staticmethod
-    def get_today_snapshots(contract_code):
+    def get_latest_snapshots(contract_code):
         """
-        دریافت تمام snapshots امروز برای یک نماد
+        دریافت تمام snapshots آخرین روز موجود برای یک نماد
         
         Args:
             contract_code: کد نماد
@@ -199,9 +204,20 @@ class CandleService:
         cursor = conn.cursor()
         
         try:
-            from datetime import date
-            today = str(date.today())
+            # ابتدا آخرین تاریخ موجود برای این نماد را بگیر
+            cursor.execute("""
+                SELECT MAX(trade_date)
+                FROM snapshots
+                WHERE contract_code = ?
+            """, (contract_code,))
             
+            result = cursor.fetchone()
+            latest_date = result[0] if result and result[0] else None
+            
+            if not latest_date:
+                return []
+            
+            # اکنون تمام snapshots آن روز را بگیر
             cursor.execute("""
                 SELECT 
                     contract_code,
@@ -214,7 +230,7 @@ class CandleService:
                 FROM snapshots
                 WHERE contract_code = ? AND trade_date = ?
                 ORDER BY snapshot_time ASC
-            """, (contract_code, today))
+            """, (contract_code, latest_date))
             
             snapshots = []
             for row in cursor.fetchall():
@@ -248,8 +264,8 @@ class CandleService:
         Returns:
             tuple: (bytes, str) - تصویر و متن توضیح
         """
-        # دریافت snapshots امروز
-        snapshots = CandleService.get_today_snapshots(contract_code)
+        # دریافت snapshots آخرین روز
+        snapshots = CandleService.get_latest_snapshots(contract_code)
         
         if not snapshots:
             return None, f"❌ داده‌ای برای {contract_code} یافت نشد"
