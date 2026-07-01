@@ -35,10 +35,23 @@ class CandleService:
         for snapshot in snapshots:
             try:
                 # تبدیل زمان snapshot به datetime
-                snap_time = datetime.strptime(
-                    snapshot['time'], 
-                    "%Y-%m-%d %H:%M:%S"
-                )
+                time_str = snapshot['time']
+                
+                # حذف حرف T اگر وجود داشته باشد (ISO format)
+                time_str = time_str.replace('T', ' ')
+                
+                # سعی کردن فرمت‌های مختلف
+                snap_time = None
+                for fmt in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"]:
+                    try:
+                        snap_time = datetime.strptime(time_str[:19], fmt)
+                        break
+                    except:
+                        continue
+                
+                if not snap_time:
+                    print(f"خطا: نتوانستم زمان را پارس کنم: {time_str}")
+                    continue
                 
                 # تحدید بازه زمانی
                 timeframe_start = snap_time.replace(
@@ -47,7 +60,7 @@ class CandleService:
                     microsecond=0
                 )
                 
-                price = snapshot['price']
+                price = float(snapshot['price'])
                 
                 # اگر بازه زمانی تغیر کرد، شمع قبلی را ذخیره کن
                 if current_timeframe != timeframe_start:
@@ -61,14 +74,14 @@ class CandleService:
                         'high': price,
                         'low': price,
                         'close': price,
-                        'volume': snapshot.get('volume', 0)
+                        'volume': float(snapshot.get('volume', 0))
                     }
                 else:
                     # بروزرسانی شمع فعلی
                     current_candle['high'] = max(current_candle['high'], price)
                     current_candle['low'] = min(current_candle['low'], price)
                     current_candle['close'] = price
-                    current_candle['volume'] += snapshot.get('volume', 0)
+                    current_candle['volume'] += float(snapshot.get('volume', 0))
             
             except Exception as e:
                 print(f"خطا در پردازش snapshot: {e}")
@@ -94,13 +107,17 @@ class CandleService:
             bytes: تصویر چارت
         """
         if not snapshots:
+            print(f"خطا: snapshots خالی است")
             return None
         
         try:
             # گروپ‌بندی داده‌ها
             candles = CandleService.group_by_timeframe(snapshots, timeframe_minutes)
             
-            if not candles:
+            print(f"DEBUG: تعداد شمع‌های ایجاد شده: {len(candles)}")
+            
+            if not candles or len(candles) < 2:
+                print(f"خطا: داده‌های ناکافی برای ساخت چارت (تعداد شمع‌ها: {len(candles)})")
                 return None
             
             # استخراج داده‌ها
@@ -110,6 +127,9 @@ class CandleService:
             lows = [c['low'] for c in candles]
             closes = [c['close'] for c in candles]
             volumes = [c['volume'] for c in candles]
+            
+            print(f"DEBUG: قیمت‌ها - min: {min(lows)}, max: {max(highs)}")
+            print(f"DEBUG: حجم‌ها - min: {min(volumes)}, max: {max(volumes)}")
             
             # ساخت شکل
             fig, (ax1, ax2) = plt.subplots(
@@ -133,7 +153,7 @@ class CandleService:
                 ax1.plot([i, i], [l, h], color=color, linewidth=1)
                 
                 # بدنه شمع
-                body_height = abs(c - o)
+                body_height = abs(c - o) if abs(c - o) > 0 else 0.01  # اگر 0 باشد، یک خط ریز بکش
                 body_bottom = min(o, c)
                 
                 rect = Rectangle(
@@ -183,10 +203,13 @@ class CandleService:
             img_buffer.seek(0)
             plt.close()
             
+            print(f"DEBUG: چارت با موفقیت ایجاد شد")
             return img_buffer
         
         except Exception as e:
-            print(f"خطا در ساخت چارت: {e}")
+            print(f"خطا در ساخت چارت: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return None
 
     @staticmethod
@@ -213,6 +236,8 @@ class CandleService:
             
             result = cursor.fetchone()
             latest_date = result[0] if result and result[0] else None
+            
+            print(f"DEBUG: آخرین تاریخ برای {contract_code}: {latest_date}")
             
             if not latest_date:
                 return []
@@ -244,10 +269,14 @@ class CandleService:
                     'date': row[6]
                 })
             
+            print(f"DEBUG: تعداد snapshots برای {contract_code}: {len(snapshots)}")
+            
             return snapshots
         
         except Exception as e:
             print(f"خطا در دریافت snapshots: {e}")
+            import traceback
+            traceback.print_exc()
             return []
         finally:
             conn.close()
@@ -264,6 +293,8 @@ class CandleService:
         Returns:
             tuple: (bytes, str) - تصویر و متن توضیح
         """
+        print(f"DEBUG: شروع ساخت چارت برای {contract_code}")
+        
         # دریافت snapshots آخرین روز
         snapshots = CandleService.get_latest_snapshots(contract_code)
         
